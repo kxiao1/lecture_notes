@@ -7,8 +7,11 @@ classes are worth taking. All errors are mine.
 Contents:
 - [x] 21-355 Real Analysis I (Notes)
 - [x] 21-355 Real Analysis I (Summary)
+- [x] 21-356 Real Analysis II (Summary)
+- [x] 21-356 Real Analysis II (Summary)
 - [x] 21-373 Algebraic Structures (Notes)
 - [x] 21-373 Algebraic Structures (Summary)
+- [x] 21-374 Field Theory (Notes)
 - [x] 21-378 Fixed Income (Technical Results)
 - [x] 21-469 Computational PDE's (Notes)
 - [x] 21-469 Computational PDE's (Summary)
@@ -16,7 +19,7 @@ Contents:
 - [x] 80-413 Category Theory (Summary)
 
 Textbooks suggested for these classes were:
-- Principles of Mathematical Analysis (<i>Baby Rudin</i>)
+- Principles of Mathematical Analysis (<i>Baby Rudin</i>), Rudin
 - Abstract Algebra, Dummit & Foote
 - Fixed Income Securities: Tools for Today's Markets, Tuckman & Serrat
 - Introduction to PDEs: A Computational Approach, Tveito & Winther
