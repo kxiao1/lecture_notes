@@ -1,0 +1,235 @@
+\documentclass[11pt]{article}
+
+\usepackage{amssymb, amsmath, amsthm, amsopn, amsfonts}
+\usepackage{enumerate}
+\usepackage{listings,xcolor,lstautogobble}
+\usepackage{fancyhdr, parskip}
+\usepackage{enumitem}
+\usepackage{hyperref}
+%\usepackage[indent=15pt]{parskip}
+\usepackage[margin=0.8in]{geometry}
+\usepackage{graphicx}
+\usepackage{tikz-cd}
+
+% homework header
+\pagestyle{fancy}
+\setlength{\headheight}{0.6in}
+\setlength{\footskip}{0.2in}
+\lhead{Monads}
+\chead{kxiao1}
+\rhead{\today}
+
+% shortcuts for sets
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\D}{\mathbb{D}}
+\newcommand{\Pc}{\mathcal{P}}
+
+% Algebra
+\DeclareMathOperator{\Aut}{Aut}
+\DeclareMathOperator{\Inn}{Inn}
+\DeclareMathOperator{\op}{op}
+
+% Real Analysis
+\newcommand{\Cc}{\mathcal{C}}
+
+\newcommand{\ep}{\epsilon}
+% \newcommand{\ra}{\rightarrow}
+% shortcut for 'top bar'
+\newcommand{\B}{\overline}
+\newcommand{\bb}{\underline}
+% line break
+\newcommand{\br}{\\[0.8em]}
+
+% Category Theory
+\usepackage{scalerel}
+\usepackage{stackengine,wasysym}
+\newcommand\reallywidetilde[1]{\ThisStyle{%
+  \setbox0=\hbox{$\SavedStyle#1$}%
+  \stackengine{-.1\LMpt}{$\SavedStyle#1$}{%
+    \stretchto{\scaleto{\SavedStyle\mkern.2mu\AC}{.5150\wd0}}{.6\ht0}%
+  }{O}{c}{F}{T}{S}%
+}}
+\usepackage{bussproofs}
+\DeclareMathOperator{\Fun}{Fun}
+
+% proofs
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{corollary}{Corollary}[theorem]
+\newtheorem{lemma}[theorem]{Lemma}
+
+% lazy
+\newcommand{\la}{\langle}
+\newcommand{\ra}{\rangle}
+
+% task environment
+\newcommand{\p}[1]{\textbf{Problem #1}\\[0.5em]}
+
+\begin{document}
+
+\section{Introduction}
+In this note I want to connect monads in category theory with monads in functional programming. The starting point is the category theoretic claim by Mac Lane that \[\texttt{"A monad in $\Cc$ is a monoid in the category of endofunctors of $\Cc$."}\]
+\begin{itemize}
+    \item What are the objects and morphisms in this category?
+    \item How does this particular ``monoid" provide an associative binary operator and an identity element?
+    \item How does the monoidal construction translate to functional programming (e.g. Haskell, OCaml) monads (with \texttt{return} and \texttt{>>=}) and satisfy the corresponding rules?
+\end{itemize}
+
+\section{Defining the monad}
+A monad needs a single object: the endofunctor $T$. By definition, $T$ maps some underlying category $\Cc$ to itself. As Mac Lane claims, $T$ belongs to the so-called category of endofunctors of $\Cc$, where endofunctors like $T$ are the objects and morphisms are the natural transformations between them. As a useful example for later, if $T$ is an endofunctor, then $T^2, T^3 \dots$ are also endofunctors and we might be able to go between them. For monads, the two important natural transformations are:
+\begin{itemize}
+    \item $\eta: 1_C \rightarrow T$
+    \item $\mu: T^2 \rightarrow T$
+\end{itemize}
+Thus a monad is properly a triple $\la T, \eta, \mu \ra$, or just $T$ for short. The properties that $\eta$ and $\mu$ satisfy are precisely those that qualify $T$ as a monoid, albeit slightly informally.
+
+\section{Why are monads also monoids?}
+As a category, each monoid $M$ contains an identity element $I$ and an associative morphism $\mathit{op}$ from $M \times M$ to $M$. In abstract algebra, $M$ is just a set of elements, $I \in M$, and no morphisms (unary functions) need to be defined on $M$\footnote{Alternatively, we can imagine a dummy object with elements as endomorphisms, and composition of morphisms given by $\mathit{op}$. However, it might be less confusing to let objects be objects.}.
+
+In our case, replace $M$ with $T$ and let $\mathit{op}$ map two endofunctors to another endofunctor. For convenience, we allow $\eta$ as an argument by identifying it with $T$, since $\eta(1_C(X)) = T$. However, bear in mind that $\eta$ maps only objects but not morphisms, unlike $T$. Thus, $\eta(T) = \eta \circ T$, and $T(\eta) \neq \eta(T)$ \textit{a priori}.
+
+For appropriate endofunctors $T_1, T_2$ (possibly including $\eta$) such that $T_1T_2 = T^n$, we define $\mathit{op}(T_1, T_2) := \mu \circ T_1(T_2)$, and the output is another endofunctor that sends $T_1T_2(X)$ to $\mu_{T^{n-2}}(X)$, for some object $X$ in $\Cc$. The notation means that $\mu$ leaves the innermost $n-2$ layers untouched.
+
+Informally, we want $\eta$ to be our (two-sided) identity. This means $\eta$ must satisfy the following:
+\begin{align*}
+    \mathit{op}(T, \eta) &= \mu \circ T(\eta)^{(*)} &&= T && \text{$^* T$ transforms $\eta$}\\
+    \mathit{op}(\eta, T) &= \mu \circ \eta(T) = \mu \circ \eta_T^{(*)} &&= T && \text{$^* \eta_T = \eta(T)$ acts on $TX$} 
+\end{align*}
+What does it mean for $op$ to be associative? First, note that $\mathit{op}(T, T) = \mu \circ T^2$. Now, we have to show that the following are equal:
+\begin{align*}
+    \mathit{op}(T, \mathit{op}(T, T)) &= \mu \circ T(\mu \circ T^2) &&=^{(*)} \mu \circ T(\mu) \circ T[T^2] && \text{$^*$Functor $T$ is distributive}\\
+    \mathit{op}(\mathit{op}(T, T), T) &= \mu \circ (\mu \circ T^2) T &&= \mu \circ \mu_T^{(*)} \circ T^2[T] && \text{$^* \mu_T = \mu(T)$ acts on $TX$}
+\end{align*}
+
+Translating these two monoid laws into category theory, i.e. into commutative diagrams, we have
+
+\begin{center}
+\begin{tabular}{|c|c|}
+    \hline
+    Identity & Associativity \\ \hline
+    \begin{tikzcd}[row sep=large, column sep = large]
+    T[X] = [TX] \arrow{r}{\eta_{TX}} \arrow{d}{T(\eta_X)} \arrow[equal]{rd} & T^2X \arrow{d}{\mu_X} \\
+    T[TX] \arrow{r}{\mu_X} & TX
+    \end{tikzcd}
+    &
+    \begin{tikzcd}[row sep=large, column sep = large]
+     T[T^2X] = T^2[TX]\arrow{r}{\mu_{TX}} \arrow{d}{T(\mu_X)} & T[TX] \arrow{d}{\mu_X}\\
+    T[TX] \arrow{r}{\mu_X} & TX 
+    \end{tikzcd} \\ \hline
+\end{tabular}    
+\end{center}
+
+
+These diagrams will be used to provide the mapping to functional programming.
+
+\section{Kleisli Category}
+The properties of $T$, $\eta$, and $\mu$ are useful because they can transform the underlying category $\Cc$ into a new category $\Cc_T$ known as the \textbf{Kleisli category}. While not originally developed for functional programming (see Section \ref{context}), the Kleisli category augments $\Cc$ much like side effects augment computation. Thus, it is the final step before we jump from category-theoretic monads to real-life monads. 
+
+In short, $\Cc_T$ wraps everything in $\Cc$ with $T$. Objects are wrapped (e.g. $x \mapsto Tx$) by morphisms that produce wrapped objects (e.g. $f: X \rightarrow TY$). With the help of $\mu$, we can compose $f: X \rightarrow TY$ and $g: Y \rightarrow TZ$ as follows: \[ g \circ f = \mu_Z \circ Tg \circ f\] Furthermore, we define the identity morphism for each object $X$ to be $\eta_X: X \rightarrow TX$, the component-wise morphism of the natural transformation $\eta$.
+
+The following diagrams summarizes the interaction between different objects and morphisms. The solid line shows how we can chain evaluations together, whereas the up-arrows labelled as $\eta_Y$ and $\eta_Z$ are dashed because the commutativity of the square will only be established later.
+\begin{center}
+\begin{tikzcd}[row sep=large, column sep = large]
+X \arrow{r}{f} & TY \arrow{r}{Tg} & T^2Z \arrow{d}{\mu_Z}& \\
+            & Y\arrow[dashed]{u}{\eta_Y} \arrow{r}{g} & TZ \arrow{r} & \dots \\
+            & & Z \arrow[dashed]{u}{\eta_Z} \arrow{r} & \dots
+\end{tikzcd}
+\end{center}
+
+Strictly speaking, $\Cc_T$ should share the same objects as $\Cc$ (i.e. the leftmost diagonal) since the domain of every morphism is some unwrapped $X$. Thus, we have to pretend that $TX$ and $X$ are the same, much like algebraic embeddings (e.g. $\Z \hookrightarrow \Q$). Besides, we could let morphisms be morphisms and not worry about changing the codomain of a ``function". The most important thing is the commutative diagrams.
+
+\section{Functional Programming}
+With the Kleisli category defined, we now interpret $\Cc$ as the cartesian-closed category that underpins lambda calclus, $x, y, z \dots$ as variables of types (i.e. objects) $X, Y, Z \dots$, the endofunctor $T$ as both the object and function wrapper, and morphisms $f: X \rightarrow TY, g: Y \rightarrow TZ \dots$ as well-defined functions.
+
+Then, with $\eta$ and $\mu$, we will define the corresponding monad functions as follows, with signature/ declaration on the left (using ML notation \texttt{'a t} and \texttt{'b t} for arbitrary types $TX$) and definitions in (pseudo-) lambda calculus on the right:
+\begin{itemize}
+\item \texttt{return: 'a $\rightarrow$ 'a t $ = \lambda$x.$\eta_{\texttt{a}}$x}\footnote{$\eta_{\texttt{a}}$ is sometimes just written as the function \texttt{T($\cdot$)}.}
+\item \texttt{>>=: 'a t $\rightarrow$ ('a $\rightarrow$ 'b t) $\rightarrow$ 'b t $= \lambda$Tx.($\lambda$f.($\mu_{\texttt{b}}\circ$Tf)(Tx))}
+\end{itemize}
+
+Given the commutativity of natural transformations and the monoid laws on $T$, we have to show that our construction satisfies the following monad rules in functional programming:
+\begin{enumerate}
+    \item \texttt{(return x) >>= f $\longleftrightarrow $ f(x)}
+    \item \texttt{Tx >>= return $\longleftrightarrow$ Tx}
+    \item \texttt{(Tx >>= f) >>= g $\longleftrightarrow$ Tx >>= $\lambda$x.(fx >>= g)}
+\end{enumerate}
+
+The proof is mostly by commutative diagrams, where type $X$ has been replaced by variable $x$:
+\begin{center}
+\begin{tabular}{|c|c|c|}
+    \hline
+    Rule & Functional Programming & Category Theory 
+    \\ \hline
+    Left Identity 
+        & 
+        \begin{tikzcd}[row sep=large, column sep = large]
+        Ty \arrow[dashed]{r}{\eta_{Ty}} \arrow[dashed, equal]{rd} & T^2y \arrow{d}{\mu_y} & Tx \arrow{l}{Tf} \\
+        & Ty & x \arrow{l}{f} \arrow{u}{\eta_X}
+        \end{tikzcd} 
+        & 
+        \begin{tikzcd}[row sep=large, column sep = large]
+        Tx \arrow{r}{\eta_{Tx}} \arrow[equal]{rd} & T^2x \arrow{d}{\mu_x} \\
+        & Tx
+        \end{tikzcd} 
+    \\ \hline 
+    Right Identity 
+        & 
+        \begin{tikzcd}[row sep=large, column sep = large]
+        Tx \arrow{r}{T(\eta_X)} & T^2x \arrow{r}{\mu_x} & Tx
+        \end{tikzcd}
+         & 
+        \begin{tikzcd}[row sep=large, column sep = large]
+        Tx \arrow{d}{T(\eta_X)} \arrow[equal]{rd} \\
+        T^2x \arrow{r}{\mu_x} & Tx
+        \end{tikzcd}
+        \\ \hline
+    Associativity
+        & 
+        \begin{tikzcd}[row sep=large, column sep = small]
+        Tx \arrow{r}{Tf} & T^2y \arrow{d}{\mu_y}  \arrow{r}{T^2g} & T^3z \arrow{r}{T(\mu_z)} \arrow[dashed]{d}{\mu_{Tz}} & T^2z \arrow{d}{\mu_z}\\
+        & Ty \arrow{r}{Tg} & T^2z \arrow{r}{\mu_z} & Tz
+        \end{tikzcd} 
+         & 
+        \begin{tikzcd}[row sep=large, column sep = large]
+         T^2[Tx] = T[T^2x] \arrow{r}{T(\mu_x)} \arrow{d}{\mu_{Tx}} & T[Tx] \arrow{d}{\mu_x}\\
+        T[Tx] \arrow{r}{\mu_x} & Tx 
+        \end{tikzcd}
+    \\ \hline
+\end{tabular}
+\end{center}
+
+Some notes:
+\begin{enumerate}
+\item Dashed lines are properties used for proofs rather than the rules themselves. In this case,
+\begin{align*}
+    \texttt{fx = }&\mu_{\texttt{y}} \circ\texttt{T(fx)} && \text{use category theory's triangle} \\
+    \texttt{= }& \mu_{\texttt{y}} \circ\texttt{Tf(Tx)} && \text{$\eta$ is a natural transformation from $1_\Cc$ to $T$}
+\end{align*}
+\item No proof needed.
+\item To check associativity, the two possible evaluation paths in functional programming are represented by solid arrows in the same figure.
+The one that goes from $T^2(y)$ to $T^3(z)$ comes from evaluating \texttt{Tx >>= $\lambda$x.(fx >>= g)}: first expand out the lambda \texttt{fx >= g}: \texttt{x$\rightarrow$ Ty $\rightarrow$ T$^2$z $\rightarrow$ Tz}, then `lift' the whole expression by $T$, and apply $\mu_z$ at the end. 
+
+If one is evaluating \texttt{(Tx >>= f) >>= g}, the sequence is \texttt{Tx $\rightarrow$ T$^2$y $\rightarrow$ Ty $\rightarrow$ T$^2$z $\rightarrow$ Tz}. Now
+\begin{align*}
+    \mu_{\texttt{z}}\circ \texttt{Tg} \circ \mu_{\texttt{y}} & \texttt{= }\mu_{\texttt{z}} \circ \mu_{\texttt{Tz}} \circ \texttt{T}^2\texttt{g} && \text{$\mu$ is a natural transformation from $T^2$ to $T$}\\
+    & \texttt{= } \mu_{\texttt{z}} \circ \texttt{T(}\mu_{\texttt{z}}\texttt{)} \circ \texttt{T}^2\texttt{g} && \text{use category theory's associativity}
+\end{align*}
+
+\item Surprisingly, we used the naturalness of both $\eta$ and $\mu$ (alongisde the monoid laws) to prove the three rules. According to \href{https://en.wikibooks.org/wiki/Haskell/Category_theory#Application_to_do-blocks}{this article}, the two sets of rules are equivalent and we can go from functional programming back to category theory i.e. define $\mu$ and $\eta$ from \texttt{>>=} and \texttt{return}.
+\end{enumerate}
+
+\section{Why do monads exist?}\label{context}
+In category theory, one can show that all monads are created from \href{https://en.wikipedia.org/wiki/Adjoint_functors}{adjoints}. Furthermore, the adjunctions that induce a monad $T$ form a category, whose \href{https://en.wikipedia.org/wiki/Initial_and_terminal_objects}{initial} object (i.e. some `special' recipe for $T$) involves passing from $C$ to $\Cc_T$ and then back to $C$.
+
+Somewhere down the road, functional programmers probably realized that monads (in their \texttt{return} and \texttt{>>=} form) can be used for stateful computation, and monads became the buzzword for FP evangelists. According to \href{https://english.stackexchange.com/questions/30654/where-does-the-term-monad-come-from#comment185062_30661}{this comment}, monads is a contraction of ``monoidal triad", an incredibly descriptive term!
+
+\section{References for Programmers}
+\begin{itemize}
+\item OCaml perspective: \href{https://ocaml.org/docs/monads}{Monads}
+\item Haskell perspective: \href{https://en.wikibooks.org/wiki/Haskell/Understanding_monads/IO}{IO Monad}, \href{https://en.wikibooks.org/wiki/Haskell/Understanding_monads/State}{State Monad}, \href{https://wiki.haskell.org/IO_inside}{More IO} etc
+\item Others: \href{https://www.adit.io/posts/2013-04-17-functors,_applicatives,_and_monads_in_pictures.html#monads}{Pictures}, \href{https://ncatlab.org/nlab/show/monad+%28in+computer+science%29}{nLab}
+\end{itemize}
+\end{document}  
